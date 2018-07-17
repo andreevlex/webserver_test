@@ -11,34 +11,35 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-
 extern crate r2d2;
-
 extern crate md5;
-
 extern crate jsonwebtoken as jwt;
+
+use std::env;
 
 use actix::prelude::*;
 use actix_web::{
     fs, middleware, server, App, AsyncResponder, Form, FutureResponse, HttpRequest, HttpResponse,
-    Json, Result, State,
+    Result,
 };
-use std::{env, io};
 
-use actix_web::http::{header, Method, StatusCode};
+use actix_web::http::{Method, StatusCode};
 
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use futures::Future;
 
-use jwt::{decode, encode, Header, Validation};
+use jwt::{decode, encode, Validation};
 
-mod cookie_auth;
+// database
 mod db;
-mod email_auth;
-mod fb_auth;
 mod models;
 mod schema;
+
+mod cookie_auth;
+mod email_auth;
+mod fb_auth;
+
 
 use cookie_auth::{CookieIdentityPolicy, IdentityService, RequestIdentity};
 use db::{DbExecutor, LoginUser};
@@ -68,30 +69,28 @@ fn p404(req: HttpRequest<AppState>) -> Result<fs::NamedFile> {
     open_static(req, "static/404.html")
 }
 
-fn open_static(req: HttpRequest<AppState>, filename: &str) -> Result<fs::NamedFile> {
+fn open_static(_req: HttpRequest<AppState>, filename: &str) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open(filename)?.set_status_code(StatusCode::NOT_FOUND))
 }
 
 fn user_good(req: &mut HttpRequest<AppState>) -> bool {
     let token = req.identity().unwrap_or("Anonymous").to_owned();
 
-    if token == "Anonymous"
-    {
+    if token == "Anonymous" {
         return false;
     }
 
     let key = "SECRET";
     let id = match env::var(key) {
         Ok(value) => {
-            let token_data =
-                jwt::decode::<Claims>(&token, value.as_ref(), &jwt::Validation::default()).expect("не фурычит");
+            let token_data = decode::<Claims>(&token, value.as_ref(), &Validation::default())
+                .expect("Invalid token");
 
             token_data.claims.sub
         }
-        Err(err) => "Anonymous".to_owned(),
+        Err(_) => "Anonymous".to_owned(),
     };
 
-    println!("{}", id);
     id != "Anonymous" // need jwt
 }
 
@@ -107,15 +106,15 @@ fn index(mut req: HttpRequest<AppState>) -> HttpResponse {
 
 fn login_fb((mut req, params): (HttpRequest<AppState>, Form<Facebook>)) -> HttpResponse {
     match generate_jwt(
-        params.userID.clone(),
+        params.user_id.clone(),
         AuthType::Facebook,
-        Some(params.accessToken.clone()),
+        Some(params.access_token.clone()),
     ) {
         Ok(token) => {
             req.remember(token);
             HttpResponse::Found().header("location", "/secret").finish()
         }
-        Err(err) => HttpResponse::build(StatusCode::FORBIDDEN)
+        Err(_) => HttpResponse::build(StatusCode::FORBIDDEN)
             .content_type("text/html; charset=utf-8")
             .body(include_str!("../static/login_false.html")),
     }
@@ -138,7 +137,7 @@ fn generate_jwt(sub: String, auth_type: AuthType, token: Option<String>) -> Resu
                 token,
             };
 
-            let token = jwt::encode(&header, &claims, value.as_ref()).unwrap(); // FIXME
+            let token = encode(&header, &claims, value.as_ref()).unwrap(); // FIXME
 
             Ok(token)
         }
@@ -212,7 +211,7 @@ fn main() {
 
     let db_addr = SyncArbiter::start(3, move || DbExecutor(pool.clone()));
 
-    let addr = server::new(move || {
+    let _addr = server::new(move || {
         App::with_state(AppState {
             db: db_addr.clone(),
         }).middleware(middleware::Logger::default())

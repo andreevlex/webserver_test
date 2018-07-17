@@ -1,5 +1,3 @@
-use super::schema::users;
-
 #[derive(Serialize, Queryable)]
 pub struct User {
     pub id: String,
