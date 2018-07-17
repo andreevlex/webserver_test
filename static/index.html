@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        function checkLoginState() {
+            FB.getLoginStatus(function (response) {
+                statusChangeCallback(response);
+            });
+        }
+
+        window.fbAsyncInit = function () {
+            FB.init({
+                appId: '{app-id}',
+                cookie: true,
+                xfbml: true,
+                version: 'v3.0'
+            });
+
+            FB.AppEvents.logPageView();
+
+        };
+
+        (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) { return; }
+            js = d.createElement(s); js.id = id;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+        function statusChangeCallback(response) {
+
+            if (response.status === 'connected') {
+                // Logged into your app and Facebook.
+                /*FB.api('/me', function (response) {
+                    console.log('Successful login for: ' + response.name);
+                    document.getElementById('status').innerHTML =
+                        'Thanks for logging in, ' + response.name + '!';
+                });*/
+            } else {
+                // The person is not logged into your app or we are unable to tell.
+                document.getElementById('status').innerHTML = 'Please log ' +
+                    'into this app.';
+            }
+
+            var authResponse = response.authResponse;
+            var params = {
+                accessToken: authResponse.accessToken,
+                expiresIn: authResponse.expiresIn,
+                reauthorize_required_in: authResponse.reauthorize_required_in,
+                signedRequest: authResponse.signedRequest,
+                userID: authResponse.userID,
+            };
+            post("/login_fb", params);
+        }
+
+        function post(path, params, method) {
+            method = method || "post";
+
+            var form = document.createElement("form");
+            form.setAttribute("method", method);
+            form.setAttribute("action", path);
+
+            for (var key in params) {
+                if (params.hasOwnProperty(key)) {
+                    var hiddenField = document.createElement("input");
+                    hiddenField.setAttribute("type", "hidden");
+                    hiddenField.setAttribute("name", key);
+                    hiddenField.setAttribute("value", params[key]);
+
+                    form.appendChild(hiddenField);
+                }
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+    <fb:login-button scope="public_profile,email" onlogin="checkLoginState();">
+    </fb:login-button>
+    <h3 id="status"></h3>
+    <br>
+    <h3>Войти через почту</h3>
+    <form method="post" action="/login_email">
+        <table>
+            <tr>
+                <td>
+                    <label for="loginField">Логин</label>
+                </td>
+                <td>
+                    <input id="loginField" type="text" name="login">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label for="passwordField">Пароль</label>
+                </td>
+                <td>
+                    <input id="passwordField" type="password" name="password">
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align: center">
+                    <input type="submit" value="Войти">
+                </td>
+            </tr>
+        </table>
+    </form>
+    <script>
+        function checkLoginState() {
+            FB.getLoginStatus(function (response) {
+                statusChangeCallback(response);
+            });
+        }
+    </script>
+</body>
+
+</html>
